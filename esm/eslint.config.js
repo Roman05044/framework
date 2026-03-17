@@ -1,17 +1,16 @@
-const prettier = require('eslint-config-prettier');
+import prettier from 'eslint-config-prettier';
 
-module.exports = [
+export default [
   {
     files: ['**/*.js'],
     languageOptions: {
-      sourceType: 'commonjs',
+      sourceType: 'module',
       ecmaVersion: 'latest',
       globals: {
         process: 'readonly',
-        __dirname: 'readonly',
-        require: 'readonly',
-        module: 'readonly',
         console: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
       },
     },
     rules: {

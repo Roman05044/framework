@@ -1,16 +1,15 @@
 {
-  "name": "lab-3-commonjs",
+  "name": "lab-3-esm",
   "version": "1.0.0",
-  "description": "Lab 3 - CommonJS branch with Fastify and AJV",
+  "type": "module",
   "main": "server.js",
-  "type": "commonjs",
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node --env-file=.env server.js",
     "predev": "npm run check",
-    "dev": "node --watch server.js",
+    "dev": "node --watch --env-file=.env server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -71,8 +70,8 @@
     "toad-cache": "^3.7.0"
   },
   "devDependencies": {
-    "eslint": "^10.0.3",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.1"
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "eslint-config-prettier": "^9.0.0"
   }
 }
