@@ -1,4 +1,5 @@
 import deviceService from '#services/device.service';
+import { MESSAGES } from '#constants/messages';
 
 export const getAll = async (request) => {
   const { room } = request.query;
@@ -13,16 +14,22 @@ export const create = async (request, reply) => {
 };
 
 export const update = async (request, reply) => {
-  const id = parseInt(request.params.id);
+  const { id } = request.params;
   const item = await deviceService.updateDevice(id, request.body);
-  if (!item) return reply.code(404).send({ error: 'Не знайдено' });
+
+  if (!item) {
+    throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
+  }
   return { message: 'Оновлено', item };
 };
 
 export const remove = async (request, reply) => {
-  const id = parseInt(request.params.id);
+  const { id } = request.params;
   const deleted = await deviceService.deleteDevice(id);
-  if (!deleted) return reply.code(404).send({ error: 'Не знайдено' });
+
+  if (!deleted) {
+    throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
+  }
   return { message: 'Видалено' };
 };
 

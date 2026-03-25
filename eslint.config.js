@@ -14,6 +14,7 @@ export default [
       },
     },
     rules: {
+      'no-process-env': 'error',
       'no-unused-vars': 'warn',
       'no-console': 'off',
       semi: ['error', 'always'],
