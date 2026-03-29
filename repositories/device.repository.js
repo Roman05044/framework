@@ -1,32 +1,60 @@
-let DEVICES = [{ id: 1, device: 'Smart Lamp', status: 'on', room: 'Kitchen' }];
+import fs from 'fs/promises';
+import path from 'path';
+import { writeAtomic, readJsonFile, deleteFile } from '../utils/fs.util.js';
+import { DeviceModel } from '../models/device.model.js';
+
+const dataDir = path.join(process.cwd(), 'data', 'devices');
+
+const getNextId = async () => {
+  try {
+    const files = await fs.readdir(dataDir);
+    const ids = files
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => parseInt(path.basename(f, '.json')))
+      .filter((id) => !isNaN(id));
+    return ids.length > 0 ? Math.max(...ids) + 1 : 1;
+  } catch (error) {
+    if (error.code === 'ENOENT') return 1;
+    throw error;
+  }
+};
 
 export const findAll = async () => {
-  return DEVICES;
+  try {
+    const files = await fs.readdir(dataDir);
+    const jsonFiles = files.filter((f) => f.endsWith('.json'));
+    const devices = await Promise.all(
+      jsonFiles.map((file) => readJsonFile(path.join(dataDir, file)))
+    );
+    return devices.filter((d) => d !== null);
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
 };
 
 export const findById = async (id) => {
-  return DEVICES.find((d) => d.id === id);
+  return await readJsonFile(path.join(dataDir, `${id}.json`));
 };
 
 export const create = async (data) => {
-  const nextId =
-    DEVICES.length > 0 ? Math.max(...DEVICES.map((d) => d.id)) + 1 : 1;
-  const newDevice = { id: nextId, ...data };
-  DEVICES.push(newDevice);
+  const nextId = await getNextId();
+  const newDevice = { ...DeviceModel, ...data, id: nextId };
+  await writeAtomic(path.join(dataDir, `${nextId}.json`), newDevice);
   return newDevice;
 };
 
 export const update = async (id, updates) => {
-  const index = DEVICES.findIndex((d) => d.id === id);
-  if (index === -1) return null;
-  DEVICES[index] = { ...DEVICES[index], ...updates };
-  return DEVICES[index];
+  const filePath = path.join(dataDir, `${id}.json`);
+  const existing = await readJsonFile(filePath);
+  if (!existing) return null;
+  const updatedDevice = { ...existing, ...updates };
+  await writeAtomic(filePath, updatedDevice);
+  return updatedDevice;
 };
 
 export const remove = async (id) => {
-  const originalLength = DEVICES.length;
-  DEVICES = DEVICES.filter((d) => d.id !== id);
-  return DEVICES.length < originalLength;
+  return await deleteFile(path.join(dataDir, `${id}.json`));
 };
 
 export default {

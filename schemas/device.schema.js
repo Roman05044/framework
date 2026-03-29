@@ -6,6 +6,8 @@ export const deviceSchema = {
     device: { type: 'string', minLength: 1 },
     status: { type: 'string', enum: ['on', 'off'] },
     room: { type: 'string', minLength: 1 },
+    description: { type: 'string' },
+    image: { type: ['string', 'null'] },
   },
 };
 
@@ -16,6 +18,7 @@ export const bodyCreateSchema = {
     device: { type: 'string', minLength: 1 },
     status: { type: 'string', enum: ['on', 'off'] },
     room: { type: 'string', minLength: 1 },
+    description: { type: 'string' },
   },
   additionalProperties: false,
 };
@@ -26,6 +29,7 @@ export const bodyUpdateSchema = {
     device: { type: 'string', minLength: 1 },
     status: { type: 'string', enum: ['on', 'off'] },
     room: { type: 'string', minLength: 1 },
+    description: { type: 'string' },
   },
   additionalProperties: false,
 };

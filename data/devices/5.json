@@ -1,0 +1,8 @@
+{
+  "id": 5,
+  "device": "Smart Plug",
+  "status": "off",
+  "room": "Kitchen",
+  "description": "Power socket with energy monitoring",
+  "image": null
+}

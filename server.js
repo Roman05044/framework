@@ -1,4 +1,5 @@
 import { buildApp } from './app.js';
+import { createBackup } from './utils/backup.util.js';
 
 const start = async () => {
   try {
@@ -7,6 +8,8 @@ const start = async () => {
     fastify.addHook('onClose', async (instance) => {
       instance.log.info('Server closed');
     });
+
+    await createBackup();
 
     await fastify.listen({
       port: fastify.config.PORT,
