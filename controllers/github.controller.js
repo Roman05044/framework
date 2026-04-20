@@ -8,7 +8,7 @@ export const getSharedReposV1 = async (request, reply) => {
     let contributors = [];
     let page = 1;
     
-    while (contributors.length < 300) {
+    while (true) {
       const contRes = await fetch(
         `https://api.github.com/repos/${repo}/contributors?per_page=100&page=${page}`,
         { headers }
@@ -58,7 +58,7 @@ export const getSharedReposV2 = async (request, reply) => {
     let contributors = [];
     let page = 1;
     
-    while (contributors.length < 300) {
+    while (true) {
       const contRes = await fetch(
         `https://api.github.com/repos/${repo}/contributors?per_page=100&page=${page}`,
         { headers }
