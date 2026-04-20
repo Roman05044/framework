@@ -31,6 +31,16 @@ export default async function (fastify) {
 
   fastify.get('/devices/export', deviceController.exportCsv);
 
+  fastify.get(
+    '/devices/:id/details',
+    {
+      schema: {
+        params: paramsSchema,
+      },
+    },
+    deviceController.getDetails
+  );
+
   fastify.post('/devices/import', deviceController.importData);
 
   fastify.post(
@@ -72,7 +82,6 @@ export default async function (fastify) {
     deviceController.update
   );
 
-  // ДОДАНО: Маршрут для завантаження зображення
   fastify.post(
     '/devices/:id/image',
     {

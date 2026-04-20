@@ -1,0 +1,7 @@
+{
+  "types": [
+    { "id": "1", "type": "Smart Lamp", "powerWatt": 10 },
+    { "id": "2", "type": "Air Conditioner", "powerWatt": 1500 },
+    { "id": "3", "type": "Smart Thermostat", "powerWatt": 5 }
+  ]
+}

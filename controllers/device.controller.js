@@ -9,6 +9,7 @@ import path from 'path';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
 import { buildImageUrl } from '../utils/url.util.js';
+import { getExternalDeviceType } from '../utils/fetch.util.js';
 
 const ajv = new Ajv({ allErrors: true });
 const validateDevice = ajv.compile(bodyCreateSchema);
@@ -23,6 +24,50 @@ export const getAll = async (request) => {
   }));
 
   return { count: items.length, items };
+};
+
+export const getAllV2 = async (request) => {
+  const page = parseInt(request.query.page) || 1;
+  const limit = parseInt(request.query.limit) || 10;
+
+  const items = await deviceService.getDevices();
+
+  const formattedItems = items.map((item) => ({
+    ...item,
+    image: buildImageUrl(request, item.image),
+  }));
+
+  const start = (page - 1) * limit;
+  const end = start + limit;
+  const paginatedData = formattedItems.slice(start, end);
+
+  return {
+    data: paginatedData,
+    meta: {
+      total: formattedItems.length,
+      page,
+      limit,
+      totalPages: Math.ceil(formattedItems.length / limit),
+    },
+  };
+};
+
+export const getDetails = async (request, reply) => {
+  const { id } = request.params;
+  const devices = await deviceService.getDevices();
+  const device = devices.find((d) => String(d.id) === String(id));
+
+  if (!device) {
+    throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
+  }
+
+  const externalData = await getExternalDeviceType(device.id);
+
+  return {
+    ...device,
+    image: buildImageUrl(request, device.image),
+    externalData: externalData || null,
+  };
 };
 
 export const exportCsv = async (request, reply) => {
@@ -59,9 +104,7 @@ export const importData = async (request, reply) => {
     } else if (data.mimetype === 'text/csv' || data.filename.endsWith('.csv')) {
       items = parse(buffer, { columns: true, skip_empty_lines: true });
     } else {
-      throw reply.badRequest(
-        'Непідтримуваний формат файлу. Використовуйте CSV або JSON'
-      );
+      throw reply.badRequest('Непідтримуваний формат файлу');
     }
   } catch {
     throw reply.badRequest('Помилка читання вмісту файлу');
@@ -161,6 +204,8 @@ export const uploadImage = async (request, reply) => {
 
 export default {
   getAll,
+  getAllV2,
+  getDetails,
   exportCsv,
   importData,
   create,

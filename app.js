@@ -4,8 +4,13 @@ import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
 import fastifySensible from '@fastify/sensible';
 import fastifyMultipart from '@fastify/multipart';
-import fastifyStatic from '@fastify/static'; // ДОДАНО
+import fastifyStatic from '@fastify/static';
+import fastifyRateLimit from '@fastify/rate-limit';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
 import deviceRoutes from '#routes/device.routes';
+import deviceRoutesV2 from '#routes/device.v2.routes';
+import githubRoutes from '#routes/github.routes';
 import healthRoutes from '#routes/health.routes';
 import crypto from 'crypto';
 import fs from 'fs/promises';
@@ -50,27 +55,38 @@ export const buildApp = async () => {
 
   await fastify.register(fastifySensible);
 
+  await fastify.register(fastifyRateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+  });
+
+  await fastify.register(fastifySwagger, {
+    swagger: {
+      info: {
+        title: 'Smart Home API',
+        version: '1.0.0',
+      },
+    },
+  });
+
+  await fastify.register(fastifySwaggerUi, {
+    routePrefix: '/docs',
+  });
+
   await fastify.register(fastifyMultipart, {
     limits: { fileSize: 5 * 1024 * 1024 },
   });
 
-  // ДОДАНО: Реєструємо плагін для статики
   await fastify.register(fastifyStatic, {
     root: path.join(process.cwd(), 'uploads'),
     prefix: '/uploads/',
   });
 
-  fastify.setErrorHandler((error, request, reply) => {
-    fastify.log.error({ err: error, method: request.method, url: request.url });
-    reply.status(error.statusCode || 500).send({
-      statusCode: error.statusCode || 500,
-      error: error.name || 'Internal Server Error',
-      message: error.message,
-    });
-  });
-
   await fastify.register(healthRoutes);
-  await fastify.register(deviceRoutes);
+
+  await fastify.register(deviceRoutes, { prefix: '/api/v1' });
+  await fastify.register(deviceRoutesV2, { prefix: '/api/v2' });
+  await fastify.register(githubRoutes, { prefix: '/api' });
 
   const checkMigrationStatus = async () => {
     try {
