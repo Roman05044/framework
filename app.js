@@ -29,6 +29,7 @@ const envSchema = {
       default: 'development',
     },
     ADMIN_API_KEY: { type: 'string' },
+    GITHUB_TOKEN: { type: 'string' },
   },
 };
 
@@ -82,7 +83,7 @@ export const buildApp = async () => {
     prefix: '/uploads/',
   });
 
-  await fastify.register(healthRoutes);
+  await fastify.register(healthRoutes, { prefix: '/api/v1' });
 
   await fastify.register(deviceRoutes, { prefix: '/api/v1' });
   await fastify.register(deviceRoutesV2, { prefix: '/api/v2' });
