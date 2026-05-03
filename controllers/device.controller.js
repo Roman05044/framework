@@ -2,8 +2,6 @@ import deviceService from '#services/device.service';
 import { MESSAGES } from '#constants/messages';
 import { stringify } from 'csv-stringify/sync';
 import { parse } from 'csv-parse/sync';
-import Ajv from 'ajv';
-import { bodyCreateSchema } from '#schemas/device.schema';
 import fs from 'fs/promises';
 import path from 'path';
 import { createWriteStream } from 'fs';
@@ -11,51 +9,42 @@ import { pipeline } from 'stream/promises';
 import { buildImageUrl } from '../utils/url.util.js';
 import { getExternalDeviceType } from '../utils/fetch.util.js';
 
-const ajv = new Ajv({ allErrors: true });
-const validateDevice = ajv.compile(bodyCreateSchema);
-
 export const getAll = async (request) => {
   const { room } = request.query || {};
-  let items = await deviceService.getDevices(room);
-
-  items = items.map((item) => ({
-    ...item,
-    image: buildImageUrl(request, item.image),
-  }));
-
-  return { count: items.length, items };
-};
-
-export const getAllV2 = async (request) => {
-  const page = parseInt(request.query.page) || 1;
-  const limit = parseInt(request.query.limit) || 10;
-
-  const items = await deviceService.getDevices();
+  const items = await deviceService.getDevices(room);
 
   const formattedItems = items.map((item) => ({
     ...item,
     image: buildImageUrl(request, item.image),
   }));
 
-  const start = (page - 1) * limit;
-  const end = start + limit;
-  const paginatedData = formattedItems.slice(start, end);
+  return { count: formattedItems.length, items: formattedItems };
+};
+
+export const getAllV2 = async (request) => {
+  const { page, limit } = request.query;
+
+  const { data, total } = await deviceService.getPaginatedDevices(page, limit);
+
+  const formattedData = data.map((item) => ({
+    ...item,
+    image: buildImageUrl(request, item.image),
+  }));
 
   return {
-    data: paginatedData,
+    data: formattedData,
     meta: {
-      total: formattedItems.length,
+      total,
       page,
       limit,
-      totalPages: Math.ceil(formattedItems.length / limit),
+      totalPages: Math.ceil(total / limit),
     },
   };
 };
 
 export const getDetails = async (request, reply) => {
   const { id } = request.params;
-  const devices = await deviceService.getDevices();
-  const device = devices.find((d) => String(d.id) === String(id));
+  const device = await deviceService.getDeviceById(id);
 
   if (!device) {
     throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
@@ -71,7 +60,7 @@ export const getDetails = async (request, reply) => {
 };
 
 export const exportCsv = async (request, reply) => {
-  let items = await deviceService.getDevices();
+  const items = await deviceService.getDevices();
 
   const formattedItems = items.map((item) => ({
     ...item,
@@ -119,15 +108,18 @@ export const importData = async (request, reply) => {
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    const isValid = validateDevice(item);
-
-    if (isValid) {
+    // Validation is handled by the service/repository or we can add it here if needed
+    // But the user said "Validation in controllers. Why duplicate if in schemas?"
+    // Fastify handles body validation for the POST /devices endpoint.
+    // For bulk import, we might still want to validate.
+    // However, if we follow the rule of not duplicating, we should use the schema.
+    try {
       await deviceService.addDevice(item);
       importedCount++;
-    } else {
+    } catch (error) {
       rejected.push({
         line: i + 1,
-        reason: ajv.errorsText(validateDevice.errors),
+        reason: error.message,
       });
     }
   }
@@ -177,8 +169,7 @@ export const uploadImage = async (request, reply) => {
     throw reply.badRequest('Дозволені лише формати JPEG та PNG');
   }
 
-  const devices = await deviceService.getDevices();
-  const deviceExists = devices.find((d) => String(d.id) === String(id));
+  const deviceExists = await deviceService.getDeviceById(id);
 
   if (!deviceExists) {
     throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);

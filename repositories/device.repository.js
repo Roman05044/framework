@@ -19,6 +19,32 @@ const getNextId = async () => {
   }
 };
 
+export const findPaginated = async (page, limit) => {
+  try {
+    const files = await fs.readdir(dataDir);
+    const jsonFiles = files
+      .filter((f) => f.endsWith('.json'))
+      .sort((a, b) => parseInt(a) - parseInt(b));
+
+    const total = jsonFiles.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const pageFiles = jsonFiles.slice(start, end);
+
+    const data = await Promise.all(
+      pageFiles.map((file) => readJsonFile(path.join(dataDir, file)))
+    );
+
+    return {
+      data: data.filter((d) => d !== null),
+      total,
+    };
+  } catch (error) {
+    if (error.code === 'ENOENT') return { data: [], total: 0 };
+    throw error;
+  }
+};
+
 export const findAll = async () => {
   try {
     const files = await fs.readdir(dataDir);
@@ -59,6 +85,7 @@ export const remove = async (id) => {
 
 export default {
   findAll,
+  findPaginated,
   findById,
   create,
   update,

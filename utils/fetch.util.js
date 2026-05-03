@@ -1,6 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+import { CONFIG } from '../constants/config.js';
+
 const CACHE_DIR = path.join(process.cwd(), 'data', 'cache');
 const CACHE_FILE = path.join(CACHE_DIR, 'reference.json');
 const TTL_SECONDS = 120;
@@ -48,7 +50,7 @@ export const getExternalDeviceType = async (typeId) => {
   } catch {}
 
   try {
-    const url = `http://localhost:3001/types/${typeId}`;
+    const url = `${CONFIG.EXTERNAL_API.TYPES_BASE_URL}${typeId}`;
     const data = await fetchWithTimeoutAndRetry(url);
 
     await fs.writeFile(

@@ -10,6 +10,14 @@ export const getDevices = async (room) => {
   return devices;
 };
 
+export const getPaginatedDevices = async (page, limit) => {
+  return deviceRepo.findPaginated(page, limit);
+};
+
+export const getDeviceById = async (id) => {
+  return deviceRepo.findById(id);
+};
+
 export const addDevice = async (data) => {
   return deviceRepo.create(data);
 };
@@ -24,6 +32,8 @@ export const deleteDevice = async (id) => {
 
 export default {
   getDevices,
+  getPaginatedDevices,
+  getDeviceById,
   addDevice,
   updateDevice,
   deleteDevice,

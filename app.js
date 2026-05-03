@@ -12,26 +12,9 @@ import deviceRoutes from '#routes/device.routes';
 import deviceRoutesV2 from '#routes/device.v2.routes';
 import githubRoutes from '#routes/github.routes';
 import healthRoutes from '#routes/health.routes';
-import crypto from 'crypto';
-import fs from 'fs/promises';
 import path from 'path';
-import { DeviceModel } from './models/device.model.js';
-
-const envSchema = {
-  type: 'object',
-  required: ['PORT', 'HOSTNAME', 'NODE_ENV', 'ADMIN_API_KEY'],
-  properties: {
-    PORT: { type: 'integer', default: 3000 },
-    HOSTNAME: { type: 'string', default: '127.0.0.1' },
-    NODE_ENV: {
-      type: 'string',
-      enum: ['development', 'production'],
-      default: 'development',
-    },
-    ADMIN_API_KEY: { type: 'string' },
-    GITHUB_TOKEN: { type: 'string' },
-  },
-};
+import { envSchema } from './schemas/env.schema.js';
+import { checkMigrationStatus } from './utils/migration.util.js';
 
 export const buildApp = async () => {
   // eslint-disable-next-line no-process-env
@@ -89,33 +72,7 @@ export const buildApp = async () => {
   await fastify.register(deviceRoutesV2, { prefix: '/api/v2' });
   await fastify.register(githubRoutes, { prefix: '/api' });
 
-  const checkMigrationStatus = async () => {
-    try {
-      const versionFile = path.join(process.cwd(), 'data', 'version.json');
-      const currentHash = crypto
-        .createHash('md5')
-        .update(JSON.stringify(DeviceModel))
-        .digest('hex');
-      let savedHash = '';
-
-      try {
-        const versionData = await fs.readFile(versionFile, 'utf8');
-        savedHash = JSON.parse(versionData).hash;
-      } catch (err) {
-        if (err.code !== 'ENOENT') throw err;
-      }
-
-      if (currentHash !== savedHash) {
-        fastify.log.warn(
-          'Data schema changed. Run "npm run migrate" to update existing files.'
-        );
-      }
-    } catch {
-      fastify.log.error('Failed to check migration status');
-    }
-  };
-
-  await checkMigrationStatus();
+  await checkMigrationStatus(fastify);
 
   return fastify;
 };
