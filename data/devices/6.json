@@ -1,0 +1,8 @@
+{
+  "id": 6,
+  "device": "Test Device",
+  "status": "on",
+  "room": "Test Room",
+  "description": "Testing WS",
+  "image": null
+}

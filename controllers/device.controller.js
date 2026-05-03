@@ -1,13 +1,19 @@
 import deviceService from '#services/device.service';
 import { MESSAGES } from '#constants/messages';
-import { stringify } from 'csv-stringify/sync';
+import { stringify } from 'csv-stringify';
 import { parse } from 'csv-parse/sync';
 import fs from 'fs/promises';
+import { createReadStream } from 'fs';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { pipeline } from 'stream/promises';
+import { Transform, Readable } from 'stream';
 import { buildImageUrl } from '../utils/url.util.js';
 import { getExternalDeviceType } from '../utils/fetch.util.js';
+import { DeviceActiveTransform } from '../src/transforms/device.transform.js';
+import { deviceEventBus } from '../utils/event-bus.util.js';
+
+const dataDir = path.join(process.cwd(), 'data', 'devices');
 
 export const getAll = async (request) => {
   const { room } = request.query || {};
@@ -60,19 +66,57 @@ export const getDetails = async (request, reply) => {
 };
 
 export const exportCsv = async (request, reply) => {
-  const items = await deviceService.getDevices();
-
-  const formattedItems = items.map((item) => ({
-    ...item,
-    image: buildImageUrl(request, item.image),
-  }));
-
-  const csv = stringify(formattedItems, { header: true });
+  const { transform } = request.query || {};
 
   reply.header('Content-Type', 'text/csv; charset=utf-8');
   reply.header('Content-Disposition', 'attachment; filename="devices.csv"');
 
-  return reply.send(csv);
+  const files = await fs.readdir(dataDir);
+  const jsonFiles = files
+    .filter((f) => f.endsWith('.json'))
+    .sort((a, b) => parseInt(a) - parseInt(b));
+
+  const fileReader = Readable.from(readFilesAsObjects(jsonFiles));
+
+  const csvStringifier = stringify({ header: true });
+
+  if (transform === 'true') {
+    const activeTransform = new DeviceActiveTransform();
+    const resultStream = fileReader.pipe(activeTransform).pipe(csvStringifier);
+    return reply.send(resultStream);
+  }
+
+  const resultStream = fileReader.pipe(csvStringifier);
+  return reply.send(resultStream);
+};
+
+async function* readFilesAsObjects(jsonFiles) {
+  for (const file of jsonFiles) {
+    const filePath = path.join(dataDir, file);
+    const content = await fs.readFile(filePath, 'utf8');
+    yield JSON.parse(content);
+  }
+}
+
+export const streamNdjson = async (request, reply) => {
+  reply.type('application/x-ndjson');
+
+  const files = await fs.readdir(dataDir);
+  const jsonFiles = files
+    .filter((f) => f.endsWith('.json'))
+    .sort((a, b) => parseInt(a) - parseInt(b));
+
+  const fileReader = Readable.from(readFilesAsObjects(jsonFiles));
+
+  const toNdjson = new Transform({
+    objectMode: true,
+    transform(obj, encoding, callback) {
+      callback(null, JSON.stringify(obj) + '\n');
+    },
+  });
+
+  const resultStream = fileReader.pipe(toNdjson);
+  return reply.send(resultStream);
 };
 
 export const importData = async (request, reply) => {
@@ -108,11 +152,6 @@ export const importData = async (request, reply) => {
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    // Validation is handled by the service/repository or we can add it here if needed
-    // But the user said "Validation in controllers. Why duplicate if in schemas?"
-    // Fastify handles body validation for the POST /devices endpoint.
-    // For bulk import, we might still want to validate.
-    // However, if we follow the rule of not duplicating, we should use the schema.
     try {
       await deviceService.addDevice(item);
       importedCount++;
@@ -133,6 +172,7 @@ export const importData = async (request, reply) => {
 
 export const create = async (request, reply) => {
   const item = await deviceService.addDevice(request.body);
+  deviceEventBus.emit('device:created', item);
   reply.code(201);
   return { message: 'Пристрій додано', item };
 };
@@ -144,6 +184,7 @@ export const update = async (request, reply) => {
   if (!item) {
     throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
   }
+  deviceEventBus.emit('device:updated', item);
   return { message: 'Оновлено', item };
 };
 
@@ -154,6 +195,7 @@ export const remove = async (request, reply) => {
   if (!deleted) {
     throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
   }
+  deviceEventBus.emit('device:deleted', { id });
   return { message: 'Видалено' };
 };
 
@@ -193,14 +235,39 @@ export const uploadImage = async (request, reply) => {
   };
 };
 
+export const getBackup = async (request, reply) => {
+  const apiKey = request.headers['x-api-key'];
+  if (!apiKey || apiKey !== request.server.config.ADMIN_API_KEY) {
+    throw reply.unauthorized(MESSAGES.UNAUTHORIZED);
+  }
+
+  const { timestamp } = request.params;
+  const backupDir = path.join(process.cwd(), 'data', 'backups');
+  const backupPath = path.join(backupDir, `${timestamp}.gz`);
+
+  try {
+    await fs.access(backupPath);
+  } catch {
+    throw reply.notFound('Backup not found');
+  }
+
+  reply.header('Content-Type', 'application/gzip');
+  reply.header('Content-Disposition', `attachment; filename="${timestamp}.gz"`);
+
+  const fileStream = createReadStream(backupPath);
+  return reply.send(fileStream);
+};
+
 export default {
   getAll,
   getAllV2,
   getDetails,
   exportCsv,
+  streamNdjson,
   importData,
   create,
   update,
   remove,
   uploadImage,
+  getBackup,
 };

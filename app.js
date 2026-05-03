@@ -8,10 +8,12 @@ import fastifyStatic from '@fastify/static';
 import fastifyRateLimit from '@fastify/rate-limit';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
+import fastifyWebsocket from '@fastify/websocket';
 import deviceRoutes from '#routes/device.routes';
 import deviceRoutesV2 from '#routes/device.v2.routes';
 import githubRoutes from '#routes/github.routes';
 import healthRoutes from '#routes/health.routes';
+import websocketRoutes from './routes/websocket.routes.js';
 import path from 'path';
 import { envSchema } from './schemas/env.schema.js';
 import { checkMigrationStatus } from './utils/migration.util.js';
@@ -66,11 +68,14 @@ export const buildApp = async () => {
     prefix: '/uploads/',
   });
 
+  await fastify.register(fastifyWebsocket);
+
   await fastify.register(healthRoutes, { prefix: '/api/v1' });
 
   await fastify.register(deviceRoutes, { prefix: '/api/v1' });
   await fastify.register(deviceRoutesV2, { prefix: '/api/v2' });
   await fastify.register(githubRoutes, { prefix: '/api' });
+  await fastify.register(websocketRoutes, { prefix: '/api/v1' });
 
   await checkMigrationStatus(fastify);
 

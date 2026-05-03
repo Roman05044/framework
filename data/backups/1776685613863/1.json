@@ -1,8 +1,0 @@
-{
-  "id": 1,
-  "device": "Smart Lamp",
-  "status": "on",
-  "room": "Kitchen",
-  "description": "RGB lamp over the table",
-  "image": "/1/image.png"
-}

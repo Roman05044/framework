@@ -29,7 +29,22 @@ export default async function (fastify) {
     deviceController.getAll
   );
 
-  fastify.get('/devices/export', deviceController.exportCsv);
+  fastify.get(
+    '/devices/export',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            transform: { type: 'string', enum: ['true', 'false'] },
+          },
+        },
+      },
+    },
+    deviceController.exportCsv
+  );
+
+  fastify.get('/devices/stream', deviceController.streamNdjson);
 
   fastify.get(
     '/devices/:id/details',
@@ -108,5 +123,21 @@ export default async function (fastify) {
       },
     },
     deviceController.remove
+  );
+
+  fastify.get(
+    '/backups/:timestamp',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          required: ['timestamp'],
+          properties: {
+            timestamp: { type: 'string' },
+          },
+        },
+      },
+    },
+    deviceController.getBackup
   );
 }

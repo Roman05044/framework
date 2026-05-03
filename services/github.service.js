@@ -8,8 +8,7 @@ export const getSharedReposV1 = async (repo, token) => {
       `https://api.github.com/repos/${repo}/contributors?per_page=100&page=${page}`,
       { headers }
     );
-    if (!contRes.ok)
-      throw new Error(`GitHub API Error: ${contRes.statusText}`);
+    if (!contRes.ok) throw new Error(`GitHub API Error: ${contRes.statusText}`);
     const data = await contRes.json();
     if (data.length === 0) break;
     contributors = contributors.concat(data);
@@ -53,8 +52,7 @@ export const getSharedReposV2 = async (repo, token) => {
       `https://api.github.com/repos/${repo}/contributors?per_page=100&page=${page}`,
       { headers: restHeaders }
     );
-    if (!contRes.ok)
-      throw new Error(`GitHub API Error: ${contRes.statusText}`);
+    if (!contRes.ok) throw new Error(`GitHub API Error: ${contRes.statusText}`);
     const data = await contRes.json();
     if (data.length === 0) break;
     contributors = contributors.concat(data);

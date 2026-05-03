@@ -1,5 +1,9 @@
 import fs from 'fs/promises';
+import { createWriteStream } from 'fs';
 import path from 'path';
+import { createGzip } from 'zlib';
+import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 
 const dataDir = path.join(process.cwd(), 'data', 'devices');
 const backupBaseDir = path.join(process.cwd(), 'data', 'backups');
@@ -13,31 +17,29 @@ export const createBackup = async () => {
 
     if (jsonFiles.length === 0) return;
 
-    const timestamp = Date.now().toString();
-    const currentBackupDir = path.join(backupBaseDir, timestamp);
-    await fs.mkdir(currentBackupDir, { recursive: true });
+    await fs.mkdir(backupBaseDir, { recursive: true });
 
-    for (const file of jsonFiles) {
-      await fs.copyFile(
-        path.join(dataDir, file),
-        path.join(currentBackupDir, file)
-      );
-    }
-    console.log(`Backup created successfully: ${timestamp}`);
+    const timestamp = Date.now().toString();
+    const backupPath = path.join(backupBaseDir, `${timestamp}.gz`);
+
+    const mergedStream = Readable.from(mergeFiles(jsonFiles));
+    const gzipStream = createGzip();
+    const outputStream = createWriteStream(backupPath);
+
+    await pipeline(mergedStream, gzipStream, outputStream);
+
+    console.log(`Gzip backup created: ${timestamp}.gz`);
 
     const allBackups = await fs.readdir(backupBaseDir);
-    allBackups.sort();
+    const gzBackups = allBackups.filter((f) => f.endsWith('.gz')).sort();
 
-    if (allBackups.length > MAX_BACKUPS) {
-      const backupsToDelete = allBackups.slice(
+    if (gzBackups.length > MAX_BACKUPS) {
+      const backupsToDelete = gzBackups.slice(
         0,
-        allBackups.length - MAX_BACKUPS
+        gzBackups.length - MAX_BACKUPS
       );
       for (const oldBackup of backupsToDelete) {
-        await fs.rm(path.join(backupBaseDir, oldBackup), {
-          recursive: true,
-          force: true,
-        });
+        await fs.unlink(path.join(backupBaseDir, oldBackup));
         console.log(`Old backup removed: ${oldBackup}`);
       }
     }
@@ -47,3 +49,14 @@ export const createBackup = async () => {
     }
   }
 };
+
+async function* mergeFiles(jsonFiles) {
+  for (let i = 0; i < jsonFiles.length; i++) {
+    const filePath = path.join(dataDir, jsonFiles[i]);
+    const content = await fs.readFile(filePath, 'utf8');
+    yield content;
+    if (i < jsonFiles.length - 1) {
+      yield '\n';
+    }
+  }
+}
