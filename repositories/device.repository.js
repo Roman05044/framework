@@ -1,93 +1,70 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { writeAtomic, readJsonFile, deleteFile } from '../utils/fs.util.js';
-import { DeviceModel } from '../models/device.model.js';
+import { Device } from '../db/models/device.model.js';
 
-const dataDir = path.join(process.cwd(), 'data', 'devices');
-
-const getNextId = async () => {
-  try {
-    const files = await fs.readdir(dataDir);
-    const ids = files
-      .filter((f) => f.endsWith('.json'))
-      .map((f) => parseInt(path.basename(f, '.json')))
-      .filter((id) => !isNaN(id));
-    return ids.length > 0 ? Math.max(...ids) + 1 : 1;
-  } catch (error) {
-    if (error.code === 'ENOENT') return 1;
-    throw error;
+export class DeviceRepository {
+  constructor(db) {
+    this.db = db;
   }
-};
 
-export const findPaginated = async (page, limit) => {
-  try {
-    const files = await fs.readdir(dataDir);
-    const jsonFiles = files
-      .filter((f) => f.endsWith('.json'))
-      .sort((a, b) => parseInt(a) - parseInt(b));
+  // Format the _id to id to keep the contract consistent
+  _format(doc) {
+    if (!doc) return null;
+    const formatted = { ...doc, id: doc._id.toString() };
+    delete formatted._id;
+    return formatted;
+  }
 
-    const total = jsonFiles.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const pageFiles = jsonFiles.slice(start, end);
+  async findPaginated(page, limit) {
+    const skip = (page - 1) * limit;
 
-    const data = await Promise.all(
-      pageFiles.map((file) => readJsonFile(path.join(dataDir, file)))
-    );
+    const [data, total] = await Promise.all([
+      Device.find({}).skip(skip).limit(limit).lean(),
+      Device.countDocuments({}),
+    ]);
 
     return {
-      data: data.filter((d) => d !== null),
+      data: data.map(this._format),
       total,
     };
-  } catch (error) {
-    if (error.code === 'ENOENT') return { data: [], total: 0 };
-    throw error;
   }
-};
 
-export const findAll = async () => {
-  try {
-    const files = await fs.readdir(dataDir);
-    const jsonFiles = files.filter((f) => f.endsWith('.json'));
-    const devices = await Promise.all(
-      jsonFiles.map((file) => readJsonFile(path.join(dataDir, file)))
-    );
-    return devices.filter((d) => d !== null);
-  } catch (error) {
-    if (error.code === 'ENOENT') return [];
-    throw error;
+  async findAll() {
+    const devices = await Device.find({}).lean();
+    return devices.map(this._format);
   }
-};
 
-export const findById = async (id) => {
-  return await readJsonFile(path.join(dataDir, `${id}.json`));
-};
+  async findById(id) {
+    try {
+      const device = await Device.findById(id).lean();
+      return this._format(device);
+    } catch {
+      return null;
+    }
+  }
 
-export const create = async (data) => {
-  const nextId = await getNextId();
-  const newDevice = { ...DeviceModel, ...data, id: nextId };
-  await writeAtomic(path.join(dataDir, `${nextId}.json`), newDevice);
-  return newDevice;
-};
+  async create(data) {
+    const device = await Device.create(data);
+    return this._format(device.toObject());
+  }
 
-export const update = async (id, updates) => {
-  const filePath = path.join(dataDir, `${id}.json`);
-  const existing = await readJsonFile(filePath);
-  if (!existing) return null;
-  const updatedDevice = { ...existing, ...updates };
-  await writeAtomic(filePath, updatedDevice);
-  return updatedDevice;
-};
+  async update(id, updates) {
+    try {
+      const device = await Device.findByIdAndUpdate(
+        id,
+        { $set: updates },
+        { new: true }
+      ).lean();
+      return this._format(device);
+    } catch {
+      return null;
+    }
+  }
 
-export const remove = async (id) => {
-  return await deleteFile(path.join(dataDir, `${id}.json`));
-};
-
-export default {
-  findAll,
-  findPaginated,
-  findById,
-  create,
-  update,
-  remove,
-};
+  async remove(id) {
+    try {
+      await Device.findByIdAndDelete(id);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}

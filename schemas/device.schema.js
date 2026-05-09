@@ -2,7 +2,7 @@ export const deviceSchema = {
   $id: 'Device',
   type: 'object',
   properties: {
-    id: { type: 'integer' },
+    id: { type: 'string' },
     device: { type: 'string', minLength: 1 },
     status: { type: 'string', enum: ['on', 'off'] },
     room: { type: 'string', minLength: 1 },
@@ -38,7 +38,7 @@ export const paramsSchema = {
   type: 'object',
   required: ['id'],
   properties: {
-    id: { type: 'integer' },
+    id: { type: 'string' },
   },
 };
 
