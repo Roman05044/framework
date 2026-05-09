@@ -1,7 +1,5 @@
 import fp from 'fastify-plugin';
 import mysql from 'mysql2/promise';
-import { DeviceRepository } from '../repositories/device.repository.js';
-import deviceService from '../services/device.service.js';
 
 async function mysqlPlugin(fastify) {
   const pool = mysql.createPool({
@@ -25,10 +23,6 @@ async function mysqlPlugin(fastify) {
 
   fastify.decorate('mysql', pool);
 
-  const deviceRepo = new DeviceRepository(pool);
-  fastify.decorate('deviceRepo', deviceRepo);
-  deviceService.setRepository(deviceRepo);
-
   fastify.addHook('onClose', async () => {
     await pool.end();
     fastify.log.info('MySQL pool closed');
@@ -36,5 +30,5 @@ async function mysqlPlugin(fastify) {
 }
 
 export default fp(mysqlPlugin, {
-  name: 'mysql-plugin'
+  name: 'mysql-plugin',
 });

@@ -16,8 +16,8 @@ import healthRoutes from '#routes/health.routes';
 import websocketRoutes from './routes/websocket.routes.js';
 import path from 'path';
 import { envSchema } from './schemas/env.schema.js';
-import { checkMigrationStatus } from './utils/migration.util.js';
 import mysqlPlugin from './db/mysql.js';
+import drizzlePlugin from './db/drizzle.js';
 
 export const buildApp = async () => {
   // eslint-disable-next-line no-process-env
@@ -35,6 +35,7 @@ export const buildApp = async () => {
   });
 
   await fastify.register(mysqlPlugin);
+  await fastify.register(drizzlePlugin);
 
   await fastify.register(fastifyHelmet, { global: true });
   await fastify.register(fastifyCors, {
@@ -79,8 +80,6 @@ export const buildApp = async () => {
   await fastify.register(deviceRoutesV2, { prefix: '/api/v2' });
   await fastify.register(githubRoutes, { prefix: '/api' });
   await fastify.register(websocketRoutes, { prefix: '/api/v1' });
-
-  await checkMigrationStatus(fastify);
 
   return fastify;
 };
