@@ -1,93 +1,74 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { writeAtomic, readJsonFile, deleteFile } from '../utils/fs.util.js';
-import { DeviceModel } from '../models/device.model.js';
-
-const dataDir = path.join(process.cwd(), 'data', 'devices');
-
-const getNextId = async () => {
-  try {
-    const files = await fs.readdir(dataDir);
-    const ids = files
-      .filter((f) => f.endsWith('.json'))
-      .map((f) => parseInt(path.basename(f, '.json')))
-      .filter((id) => !isNaN(id));
-    return ids.length > 0 ? Math.max(...ids) + 1 : 1;
-  } catch (error) {
-    if (error.code === 'ENOENT') return 1;
-    throw error;
+export class DeviceRepository {
+  constructor(db) {
+    this.db = db;
   }
-};
 
-export const findPaginated = async (page, limit) => {
-  try {
-    const files = await fs.readdir(dataDir);
-    const jsonFiles = files
-      .filter((f) => f.endsWith('.json'))
-      .sort((a, b) => parseInt(a) - parseInt(b));
+  async findPaginated(page, limit) {
+    const offset = (page - 1) * limit;
+    
+    const [rows] = await this.db.execute(
+      'SELECT * FROM devices ORDER BY id ASC LIMIT ? OFFSET ?',
+      [String(limit), String(offset)]
+    );
 
-    const total = jsonFiles.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const pageFiles = jsonFiles.slice(start, end);
-
-    const data = await Promise.all(
-      pageFiles.map((file) => readJsonFile(path.join(dataDir, file)))
+    const [[{ total }]] = await this.db.execute(
+      'SELECT COUNT(*) as total FROM devices'
     );
 
     return {
-      data: data.filter((d) => d !== null),
-      total,
+      data: rows,
+      total: Number(total),
     };
-  } catch (error) {
-    if (error.code === 'ENOENT') return { data: [], total: 0 };
-    throw error;
   }
-};
 
-export const findAll = async () => {
-  try {
-    const files = await fs.readdir(dataDir);
-    const jsonFiles = files.filter((f) => f.endsWith('.json'));
-    const devices = await Promise.all(
-      jsonFiles.map((file) => readJsonFile(path.join(dataDir, file)))
+  async findAll() {
+    const [rows] = await this.db.execute('SELECT * FROM devices');
+    return rows;
+  }
+
+  async findById(id) {
+    const [rows] = await this.db.execute(
+      'SELECT * FROM devices WHERE id = ?',
+      [id]
     );
-    return devices.filter((d) => d !== null);
-  } catch (error) {
-    if (error.code === 'ENOENT') return [];
-    throw error;
+    return rows.length > 0 ? rows[0] : null;
   }
-};
 
-export const findById = async (id) => {
-  return await readJsonFile(path.join(dataDir, `${id}.json`));
-};
+  async create(data) {
+    const { device, status, room, description, image } = data;
+    const [result] = await this.db.execute(
+      'INSERT INTO devices (device, status, room, description, image) VALUES (?, ?, ?, ?, ?)',
+      [
+        device,
+        status || 'off',
+        room,
+        description || '',
+        image || null
+      ]
+    );
+    
+    return { id: result.insertId, device, status: status || 'off', room, description: description || '', image: image || null };
+  }
 
-export const create = async (data) => {
-  const nextId = await getNextId();
-  const newDevice = { ...DeviceModel, ...data, id: nextId };
-  await writeAtomic(path.join(dataDir, `${nextId}.json`), newDevice);
-  return newDevice;
-};
+  async update(id, updates) {
+    const existing = await this.findById(id);
+    if (!existing) return null;
 
-export const update = async (id, updates) => {
-  const filePath = path.join(dataDir, `${id}.json`);
-  const existing = await readJsonFile(filePath);
-  if (!existing) return null;
-  const updatedDevice = { ...existing, ...updates };
-  await writeAtomic(filePath, updatedDevice);
-  return updatedDevice;
-};
+    const updated = { ...existing, ...updates };
 
-export const remove = async (id) => {
-  return await deleteFile(path.join(dataDir, `${id}.json`));
-};
+    await this.db.execute(
+      'UPDATE devices SET device=?, status=?, room=?, description=?, image=? WHERE id=?',
+      [updated.device, updated.status, updated.room, updated.description, updated.image, id]
+    );
 
-export default {
-  findAll,
-  findPaginated,
-  findById,
-  create,
-  update,
-  remove,
-};
+    return updated;
+  }
+
+  async remove(id) {
+    const [result] = await this.db.execute(
+      'DELETE FROM devices WHERE id=?',
+      [id]
+    );
+    return result.affectedRows > 0;
+  }
+}

@@ -17,6 +17,7 @@ import websocketRoutes from './routes/websocket.routes.js';
 import path from 'path';
 import { envSchema } from './schemas/env.schema.js';
 import { checkMigrationStatus } from './utils/migration.util.js';
+import mysqlPlugin from './db/mysql.js';
 
 export const buildApp = async () => {
   // eslint-disable-next-line no-process-env
@@ -32,6 +33,8 @@ export const buildApp = async () => {
     schema: envSchema,
     dotenv: true,
   });
+
+  await fastify.register(mysqlPlugin);
 
   await fastify.register(fastifyHelmet, { global: true });
   await fastify.register(fastifyCors, {

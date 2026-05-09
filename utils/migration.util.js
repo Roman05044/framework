@@ -1,31 +1,37 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import { DeviceModel } from '../models/device.model.js';
 
 export const checkMigrationStatus = async (fastify) => {
   try {
-    const versionFile = path.join(process.cwd(), 'data', 'version.json');
+    const schemaPath = path.join(process.cwd(), 'db', 'schema.sql');
+    const schemaSql = await fs.readFile(schemaPath, 'utf8');
+
     const currentHash = crypto
       .createHash('md5')
-      .update(JSON.stringify(DeviceModel))
+      .update(schemaSql)
       .digest('hex');
-    let savedHash = '';
 
-    try {
-      const versionData = await fs.readFile(versionFile, 'utf8');
-      savedHash = JSON.parse(versionData).hash;
-    } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
+    const [rows] = await fastify.mysql.execute(
+      'SELECT hash FROM migrations ORDER BY id DESC LIMIT 1'
+    );
+
+    let savedHash = '';
+    if (rows && rows.length > 0) {
+      savedHash = rows[0].hash;
     }
 
     if (currentHash !== savedHash) {
       fastify.log.warn(
-        'Data schema changed. Run "npm run migrate" to update existing files.'
+        'Data schema changed. Run "npm run migrate" to update database schema.'
       );
     }
-  } catch {
-    fastify.log.error('Failed to check migration status');
+  } catch (err) {
+    if (err.code === 'ER_NO_SUCH_TABLE') {
+      fastify.log.warn('Database not initialized. Run "npm run migrate".');
+    } else {
+      fastify.log.error(err, 'Failed to check migration status');
+    }
   }
 };
 
