@@ -12,8 +12,16 @@ import { buildImageUrl } from '../utils/url.util.js';
 import { getExternalDeviceType } from '../utils/fetch.util.js';
 import { DeviceActiveTransform } from '../src/transforms/device.transform.js';
 import { deviceEventBus } from '../utils/event-bus.util.js';
+import { REDIS_KEYS } from '../constants/redis.js';
 
 const dataDir = path.join(process.cwd(), 'data', 'devices');
+
+const invalidateCache = async (redis) => {
+  const keys = await redis.keys(REDIS_KEYS.ITEMS_V2_PATTERN);
+  if (keys.length > 0) {
+    await redis.del(keys);
+  }
+};
 
 export const getAll = async (request) => {
   const { room } = request.query || {};
@@ -43,6 +51,12 @@ export const getOne = async (request, reply) => {
 
 export const getAllV2 = async (request) => {
   const { page, limit } = request.query;
+  const cacheKey = REDIS_KEYS.ITEMS_V2(page, limit);
+
+  const cached = await request.server.redis.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
 
   const { data, total } = await deviceService.getPaginatedDevices(page, limit);
 
@@ -51,7 +65,7 @@ export const getAllV2 = async (request) => {
     image: buildImageUrl(request, item.image),
   }));
 
-  return {
+  const result = {
     data: formattedData,
     meta: {
       total,
@@ -60,6 +74,10 @@ export const getAllV2 = async (request) => {
       totalPages: Math.ceil(total / limit),
     },
   };
+
+  await request.server.redis.set(cacheKey, JSON.stringify(result), 'EX', 86400);
+
+  return result;
 };
 
 export const getDetails = async (request, reply) => {
@@ -70,7 +88,7 @@ export const getDetails = async (request, reply) => {
     throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
   }
 
-  const externalData = await getExternalDeviceType(device.id);
+  const externalData = await getExternalDeviceType(device.id, request.server.redis);
 
   return {
     ...device,
@@ -177,6 +195,10 @@ export const importData = async (request, reply) => {
     }
   }
 
+  if (importedCount > 0) {
+    await invalidateCache(request.server.redis);
+  }
+
   return {
     message: 'Імпорт завершено',
     imported: importedCount,
@@ -187,6 +209,7 @@ export const importData = async (request, reply) => {
 export const create = async (request, reply) => {
   const item = await deviceService.addDevice(request.body);
   deviceEventBus.emit('device:created', item);
+  await invalidateCache(request.server.redis);
   reply.code(201);
   return { message: 'Пристрій додано', item };
 };
@@ -199,6 +222,7 @@ export const update = async (request, reply) => {
     throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
   }
   deviceEventBus.emit('device:updated', item);
+  await invalidateCache(request.server.redis);
   return { message: 'Оновлено', item };
 };
 
@@ -210,6 +234,7 @@ export const remove = async (request, reply) => {
     throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
   }
   deviceEventBus.emit('device:deleted', { id });
+  await invalidateCache(request.server.redis);
   return { message: 'Видалено' };
 };
 

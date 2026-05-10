@@ -1,17 +1,9 @@
-import fs from 'fs/promises';
+
 import path from 'path';
 
 import { CONFIG } from '../constants/config.js';
 
-const CACHE_DIR = path.join(process.cwd(), 'data', 'cache');
-const CACHE_FILE = path.join(CACHE_DIR, 'reference.json');
 const TTL_SECONDS = 120;
-
-const ensureCacheDir = async () => {
-  try {
-    await fs.mkdir(CACHE_DIR, { recursive: true });
-  } catch {}
-};
 
 const fetchWithTimeoutAndRetry = async (url, retries = 3, timeout = 5000) => {
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -36,16 +28,13 @@ const fetchWithTimeoutAndRetry = async (url, retries = 3, timeout = 5000) => {
   }
 };
 
-export const getExternalDeviceType = async (typeId) => {
-  await ensureCacheDir();
+export const getExternalDeviceType = async (typeId, redis) => {
+  const cacheKey = `cache:reference:${typeId}`;
 
   try {
-    const cacheData = await fs.readFile(CACHE_FILE, 'utf8');
-    const cache = JSON.parse(cacheData);
-
-    const isCacheValid = Date.now() - cache.timestamp < TTL_SECONDS * 1000;
-    if (isCacheValid && cache.data && cache.data.id === String(typeId)) {
-      return cache.data;
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
     }
   } catch {}
 
@@ -53,11 +42,9 @@ export const getExternalDeviceType = async (typeId) => {
     const url = `${CONFIG.EXTERNAL_API.TYPES_BASE_URL}${typeId}`;
     const data = await fetchWithTimeoutAndRetry(url);
 
-    await fs.writeFile(
-      CACHE_FILE,
-      JSON.stringify({ timestamp: Date.now(), data }, null, 2),
-      'utf8'
-    );
+    if (data) {
+      await redis.set(cacheKey, JSON.stringify(data), 'EX', TTL_SECONDS);
+    }
 
     return data;
   } catch {

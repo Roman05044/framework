@@ -18,6 +18,7 @@ import path from 'path';
 import { envSchema } from './schemas/env.schema.js';
 import mysqlPlugin from './db/mysql.js';
 import drizzlePlugin from './db/drizzle.js';
+import redisPlugin from './db/redis.js';
 
 export const buildApp = async () => {
   // eslint-disable-next-line no-process-env
@@ -36,6 +37,7 @@ export const buildApp = async () => {
 
   await fastify.register(mysqlPlugin);
   await fastify.register(drizzlePlugin);
+  await fastify.register(redisPlugin);
 
   await fastify.register(fastifyHelmet, { global: true });
   await fastify.register(fastifyCors, {
@@ -48,6 +50,7 @@ export const buildApp = async () => {
   await fastify.register(fastifyRateLimit, {
     max: 100,
     timeWindow: '1 minute',
+    redis: fastify.redis,
   });
 
   await fastify.register(fastifySwagger, {

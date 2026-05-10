@@ -14,3 +14,9 @@ export const devices = mysqlTable('devices', {
   description: text('description'),
   image: varchar('image', { length: 255 }),
 });
+
+export const users = mysqlTable('users', {
+  id: int('id').autoincrement().primaryKey(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }).notNull(),
+});

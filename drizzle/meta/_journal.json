@@ -8,6 +8,13 @@
       "when": 1778420541999,
       "tag": "0000_hesitant_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1778433785700,
+      "tag": "0001_typical_shape",
+      "breakpoints": true
     }
   ]
 }

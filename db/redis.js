@@ -1,0 +1,15 @@
+import fp from 'fastify-plugin';
+import fastifyRedis from '@fastify/redis';
+
+async function redisPlugin(fastify, options) {
+  await fastify.register(fastifyRedis, {
+    host: fastify.config.REDIS_HOST,
+    port: fastify.config.REDIS_PORT,
+    closeClient: true,
+  });
+}
+
+export default fp(redisPlugin, {
+  name: 'db-redis',
+  dependencies: ['@fastify/env'],
+});
