@@ -1,3 +1,4 @@
+/* eslint-disable no-process-env */
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -9,7 +10,6 @@ const schemaPath = path.join(process.cwd(), 'db', 'schema.sql');
 const migrate = async () => {
   let connection;
   try {
-    // eslint-disable-next-line no-process-env
     connection = await mysql.createConnection({
       host: process.env.MYSQL_HOST,
       port: process.env.MYSQL_PORT,
@@ -20,7 +20,10 @@ const migrate = async () => {
     });
 
     const schemaSql = await fs.readFile(schemaPath, 'utf8');
-    const currentHash = crypto.createHash('md5').update(schemaSql).digest('hex');
+    const currentHash = crypto
+      .createHash('md5')
+      .update(schemaSql)
+      .digest('hex');
 
     // Make sure migrations table exists to check hash
     await connection.query(`

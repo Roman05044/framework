@@ -1,3 +1,4 @@
+/* eslint-disable no-process-env */
 import mysql from 'mysql2/promise';
 import 'dotenv/config';
 
@@ -21,7 +22,6 @@ const isForce = process.argv.includes('--force');
 const seedData = async () => {
   let connection;
   try {
-    // eslint-disable-next-line no-process-env
     connection = await mysql.createConnection({
       host: process.env.MYSQL_HOST,
       port: process.env.MYSQL_PORT,
@@ -31,7 +31,9 @@ const seedData = async () => {
     });
     console.log('Connected to MySQL');
 
-    const [rows] = await connection.execute('SELECT COUNT(*) as count FROM devices');
+    const [rows] = await connection.execute(
+      'SELECT COUNT(*) as count FROM devices'
+    );
     const count = rows[0].count;
 
     if (count > 0 && !isForce) {

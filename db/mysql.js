@@ -36,5 +36,5 @@ async function mysqlPlugin(fastify) {
 }
 
 export default fp(mysqlPlugin, {
-  name: 'mysql-plugin'
+  name: 'mysql-plugin',
 });

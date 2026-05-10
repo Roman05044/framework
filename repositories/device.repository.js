@@ -5,7 +5,7 @@ export class DeviceRepository {
 
   async findPaginated(page, limit) {
     const offset = (page - 1) * limit;
-    
+
     const [rows] = await this.db.execute(
       'SELECT * FROM devices ORDER BY id ASC LIMIT ? OFFSET ?',
       [String(limit), String(offset)]
@@ -27,10 +27,9 @@ export class DeviceRepository {
   }
 
   async findById(id) {
-    const [rows] = await this.db.execute(
-      'SELECT * FROM devices WHERE id = ?',
-      [id]
-    );
+    const [rows] = await this.db.execute('SELECT * FROM devices WHERE id = ?', [
+      id,
+    ]);
     return rows.length > 0 ? rows[0] : null;
   }
 
@@ -38,16 +37,17 @@ export class DeviceRepository {
     const { device, status, room, description, image } = data;
     const [result] = await this.db.execute(
       'INSERT INTO devices (device, status, room, description, image) VALUES (?, ?, ?, ?, ?)',
-      [
-        device,
-        status || 'off',
-        room,
-        description || '',
-        image || null
-      ]
+      [device, status || 'off', room, description || '', image || null]
     );
-    
-    return { id: result.insertId, device, status: status || 'off', room, description: description || '', image: image || null };
+
+    return {
+      id: result.insertId,
+      device,
+      status: status || 'off',
+      room,
+      description: description || '',
+      image: image || null,
+    };
   }
 
   async update(id, updates) {
@@ -58,17 +58,23 @@ export class DeviceRepository {
 
     await this.db.execute(
       'UPDATE devices SET device=?, status=?, room=?, description=?, image=? WHERE id=?',
-      [updated.device, updated.status, updated.room, updated.description, updated.image, id]
+      [
+        updated.device,
+        updated.status,
+        updated.room,
+        updated.description,
+        updated.image,
+        id,
+      ]
     );
 
     return updated;
   }
 
   async remove(id) {
-    const [result] = await this.db.execute(
-      'DELETE FROM devices WHERE id=?',
-      [id]
-    );
+    const [result] = await this.db.execute('DELETE FROM devices WHERE id=?', [
+      id,
+    ]);
     return result.affectedRows > 0;
   }
 }
