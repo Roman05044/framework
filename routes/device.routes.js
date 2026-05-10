@@ -30,6 +30,19 @@ export default async function (fastify) {
   );
 
   fastify.get(
+    '/devices/:id',
+    {
+      schema: {
+        params: paramsSchema,
+        response: {
+          200: { $ref: 'Device#' },
+        },
+      },
+    },
+    deviceController.getOne
+  );
+
+  fastify.get(
     '/devices/export',
     {
       schema: {

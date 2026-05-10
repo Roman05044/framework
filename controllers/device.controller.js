@@ -27,6 +27,20 @@ export const getAll = async (request) => {
   return { count: formattedItems.length, items: formattedItems };
 };
 
+export const getOne = async (request, reply) => {
+  const { id } = request.params;
+  const device = await deviceService.getDeviceById(id);
+
+  if (!device) {
+    throw reply.notFound(MESSAGES.DEVICE_NOT_FOUND);
+  }
+
+  return {
+    ...device,
+    image: buildImageUrl(request, device.image),
+  };
+};
+
 export const getAllV2 = async (request) => {
   const { page, limit } = request.query;
 
@@ -261,6 +275,7 @@ export const getBackup = async (request, reply) => {
 export default {
   getAll,
   getAllV2,
+  getOne,
   getDetails,
   exportCsv,
   streamNdjson,
