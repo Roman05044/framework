@@ -10,6 +10,16 @@ import {
 export default async function (fastify) {
   fastify.addSchema(deviceSchema);
 
+  fastify.addHook('onRequest', async (request, reply) => {
+    if (['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+      try {
+        await request.jwtVerify();
+      } catch {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+    }
+  });
+
   fastify.get(
     '/devices',
     {
