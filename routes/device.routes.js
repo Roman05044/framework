@@ -10,6 +10,12 @@ import {
 export default async function (fastify) {
   fastify.addSchema(deviceSchema);
 
+  fastify.addHook('onRequest', async (request, reply) => {
+    if (['POST', 'PATCH', 'DELETE'].includes(request.method)) {
+      await fastify.authenticate(request, reply);
+    }
+  });
+
   fastify.get(
     '/devices',
     {
