@@ -39,6 +39,7 @@ const healthDetailsSchema = {
 
 export default async function (fastify) {
   fastify.get('/health', { schema: healthSchema }, async () => {
+    console.log('Hot-reload test: Request received at ' + new Date().toISOString());
     return { status: 'ok' };
   });
 
